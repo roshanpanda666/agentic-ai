@@ -12,4 +12,4 @@ wav = tts.tts(text)
 
 # 📢 Play the audio using sounddevice
 sd.play(np.array(wav), samplerate=22050)
-sd.wait()  # Wait until done playing
+sd.wait()  
