@@ -1,18 +1,15 @@
-from duckduckgo_search import DDGS
 import requests
 from bs4 import BeautifulSoup
 from TTS.api import TTS
 import sounddevice as sd
 import numpy as np
+import urllib.parse
 
-# Switch to fast_pitch model (supports speed control)
+# 🎙️ Init TTS
 print("🔊 Initializing voice engine...")
 tts = TTS(model_name="tts_models/en/ljspeech/fast_pitch", progress_bar=False)
+speed = 1.3
 
-# Set speaking speed
-speed = 2  # >1 = slower, <1 = faster
-
-# Speak function with speed control
 def speak(text):
     try:
         print(f"🎤 Speaking: {text}")
@@ -22,43 +19,75 @@ def speak(text):
     except Exception as e:
         print("❌ Voice playback failed:", e)
 
-# Intro message
-speak("Welcome to your AI search assistant. Ask me anything!")
+# 🔍 Step 1: Convert any natural query into actual Wikipedia title
+def search_wikipedia_title(query):
+    search_url = "https://en.wikipedia.org/w/api.php"
+    params = {
+        "action": "opensearch",
+        "format": "json",
+        "search": query
+    }
 
-# Search loop
+    try:
+        res = requests.get(search_url, params=params)
+        data = res.json()
+        if data[1]:
+            return data[1][0]  # best matched article title
+        else:
+            return None
+    except Exception as e:
+        print(f"❌ Wikipedia search failed: {e}")
+        return None
+
+# 🌐 Step 2: Scrape article content from matched Wikipedia title
+def fetch_from_wikipedia(title):
+    encoded_title = urllib.parse.quote(title.replace(" ", "_"))
+    url = f"https://en.wikipedia.org/wiki/{encoded_title}"
+    print(f"🌐 Fetching: {url}")
+
+    try:
+        res = requests.get(url, headers={"User-Agent": "Mozilla/5.0"})
+        soup = BeautifulSoup(res.text, "html.parser")
+
+        # Get the first few paragraphs
+        paragraphs = soup.select("p")
+        content = []
+
+        for p in paragraphs:
+            text = p.get_text(strip=True)
+            if text:
+                content.append(text)
+            if len(content) >= 3:
+                break
+
+        return content, url
+
+    except Exception as e:
+        print(f"⚠️ Failed to fetch Wikipedia page: {e}")
+        return [], url
+
+# 🚀 Start Assistant Loop
+speak("Welcome to your Wikipedia-powered smart AI assistant. Ask me anything!")
+
 while True:
-    query = input("\n📝 Enter your query: ")
+    query = input("\n📝 What do you want to know? ")
 
-    with DDGS() as ddgs:
-        results = ddgs.text(query, max_results=1)
-        for r in results:
-            title = r['title']
-            link = r['href']
+    # Convert natural language to Wikipedia page title
+    page_title = search_wikipedia_title(query)
 
-            print(f"\n🔗 Title: {title}")
-            print(f"🌐 Link: {link}")
-            speak(f"Here is what I found: {title}")
+    if not page_title:
+        speak("Sorry, I couldn't find anything related to that.")
+        continue
 
-            try:
-                headers = {
-                    "User-Agent": "Mozilla/5.0"
-                }
-                res = requests.get(link, headers=headers, timeout=5)
-                soup = BeautifulSoup(res.text, 'html.parser')
+    print(f"🔎 Matched Wikipedia title: {page_title}")
 
-                paragraphs = soup.find_all('p')
-                print("📝 First few lines:")
+    results, page_url = fetch_from_wikipedia(page_title)
 
-                spoken_count = 0
-                for p in paragraphs:
-                    text = p.get_text(strip=True)
-                    if text:
-                        print(f" - {text}")
-                        speak(text)
-                        spoken_count += 1
-                    if spoken_count >= 3:
-                        break
+    if not results:
+        speak("Sorry, I couldn't fetch the content.")
+        continue
 
-            except Exception as e:
-                print(f"⚠️ Could not scrape {link}: {e}")
-                speak("Sorry, I couldn't fetch the content from that page.")
+    print(f"\n📄 Reading from: {page_url}")
+    for para in results:
+        print(f"📝 {para}\n")
+        speak(para)
