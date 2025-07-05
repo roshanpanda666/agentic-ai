@@ -1,39 +1,32 @@
 import requests
 from bs4 import BeautifulSoup
-from voice_engine import speak
 
-#  Ask user for input
-speak("type something to search")
-search = input("🔍 Enter a topic to search on Wikipedia: ").strip().lower()
+def scrape_wikipedia(query: str):
+    # 🧹 Clean unnecessary question phrases
+    for phrase in ["who is", "what is", "where is", "tell me about", "define"]:
+        if query.lower().startswith(phrase):
+            query = query.lower().replace(phrase, "").strip()
 
-#  Clean unnecessary question phrases
-for phrase in ["who is", "what is","where is", "tell me about", "define"]:
-    if search.startswith(phrase):
-        search = search.replace(phrase, "").strip()
+    formatted_search = query.replace(" ", "_")
+    url = f"https://en.wikipedia.org/wiki/{formatted_search}"
 
-#  Format search term for Wikipedia URL
-formatted_search = search.replace(" ", "_")
-url = f"https://en.wikipedia.org/wiki/{formatted_search}"
+    try:
+        response = requests.get(url, headers={"User-Agent": "Mozilla/5.0"})
+        soup = BeautifulSoup(response.content, 'html.parser')
 
-#  Send request
-response = requests.get(url)
+        # 🏷️ Get title
+        title_tag = soup.find('h1')
+        title = title_tag.text if title_tag else "No Title Found"
 
-#  Parse the HTML
-soup = BeautifulSoup(response.content, 'html.parser')
+        # 📜 Get main content paragraph
+        paragraph = ""
+        for p in soup.find_all('p'):
+            if p.text.strip() and not p.text.lower().startswith("coordinates") and len(p.text.strip()) > 40:
+                paragraph = p.text.strip()
+                break
 
-#  Get Title
-title_tag = soup.find('h1')
-title = title_tag.text if title_tag else "No Title Found"
+        return title, paragraph if paragraph else "No suitable paragraph found"
 
-#  Find first real paragraph (not notices)
-paragraph = ""
-for p in soup.find_all('p'):
-    if p.text.strip() and not p.text.lower().startswith("coordinates") and len(p.text.strip()) > 40:
-        paragraph = p.text.strip()
-        break
+    except Exception as e:
+        return "Error", f"⚠️ Failed to scrape Wikipedia: {e}"
 
-#  Show results
-print(f"\n🔥 Title: {title}\n")
-speak(title)
-print(f"📜 Intro Paragraph:\n{paragraph if paragraph else 'No suitable paragraph found'}")
-speak(paragraph if paragraph else 'No suitable paragraph found')
