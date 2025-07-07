@@ -1,3 +1,4 @@
+# responsive omnidirectional smart entity
 import nltk
 from voice_engine import speak
 from nltk.tokenize import word_tokenize
