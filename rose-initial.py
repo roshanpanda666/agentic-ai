@@ -5,7 +5,7 @@ from nltk.tokenize import word_tokenize
 from nltk import NaiveBayesClassifier
 from scrapper import scrape_wikipedia
 from intents import training_data
-from responses import responses  # 💬 Modular response data
+from responses import responses  # Modular response data
 
 # 📦 Download required NLTK data
 nltk.download('punkt')
