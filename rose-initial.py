@@ -7,8 +7,7 @@ import requests
 from bs4 import BeautifulSoup
 import urllib.parse
 
-import nltk
-
+# Download nltk resources (cached)
 @st.cache_data(show_spinner=False)
 def download_nltk_resources():
     resources = ['punkt', 'stopwords', 'wordnet', 'omw-1.4']
@@ -17,12 +16,9 @@ def download_nltk_resources():
             nltk.data.find(f'tokenizers/{resource}') if resource == 'punkt' else nltk.data.find(f'corpora/{resource}')
         except LookupError:
             nltk.download(resource)
-
 download_nltk_resources()
 
-# ========================
-# 🌐 Wikipedia Scraper
-# ========================
+# Wikipedia scraper function
 def scrape_wikipedia(query: str):
     for phrase in ["who is", "what is", "where is", "tell me about", "define"]:
         if query.lower().startswith(phrase):
@@ -48,9 +44,7 @@ def scrape_wikipedia(query: str):
     except Exception as e:
         return "Error", f"⚠️ Failed to scrape Wikipedia: {e}"
 
-# ========================
-# 🎯 Intents Data
-# ========================
+# Full intents data
 training_data = [
     # 👋 Greetings
     ("hello there", "greeting"), ("hi bro", "greeting"), ("hey dude", "greeting"),
@@ -157,9 +151,7 @@ training_data = [
     ("open youtube and search lo-fi music", "playyoutube"),
 ]
 
-# ========================
-# 💬 Responses
-# ========================
+# Full responses dictionary
 responses = {
     "greeting": ["Heyy!", "What's up bhai!", "Hello legend! 😎"],
     "question": ["Let's learn together!", "That's a deep one... 🤔", "Here’s what I know..."],
@@ -187,24 +179,18 @@ responses = {
     "playyoutube": ["Opening YouTube for you... 🎵", "Here you go, enjoy! 🎬"]
 }
 
-# ========================
-# 🧠 Preprocessing
-# ========================
+# Preprocessing function
 def preprocess_with_tokens(sentence):
     tokens = word_tokenize(sentence.lower())
     clean_tokens = [word for word in tokens if word.isalnum()]
     features = {word: True for word in clean_tokens}
     return features, clean_tokens
 
-# ========================
-# 🤖 Train classifier
-# ========================
+# Train classifier
 train_set = [(preprocess_with_tokens(text)[0], label) for text, label in training_data]
 classifier = NaiveBayesClassifier.train(train_set)
 
-# ========================
-# 🚀 Streamlit UI
-# ========================
+# Streamlit UI setup
 st.set_page_config(page_title="Smart Entity 🤖", layout="centered")
 st.title("💬 Responsive Omnidirectional Smart Entity")
 
@@ -216,19 +202,16 @@ for sender, message in st.session_state.history:
     st.markdown(f"**{sender}:** {message}")
 
 st.markdown("---")
-col1, col2 = st.columns([4, 1])
-with col1:
-    user_input = st.text_input("Type your message:", key="user_message", label_visibility="collapsed")
-with col2:
-    send_button = st.button("Send")
+
+with st.form(key="chat_form", clear_on_submit=True):
+    user_input = st.text_input("Type your message:", label_visibility="collapsed")
+    send_button = st.form_submit_button("Send")
 
 if send_button and user_input.strip() != "":
     features, clean_tokens = preprocess_with_tokens(user_input)
     label = classifier.classify(features)
 
     if label == "playyoutube":
-        # Extract query text for YouTube search
-        # Remove phrases to isolate song/video title
         lowered = user_input.lower()
         for phrase in ["open youtube and play", "play", "on youtube", "youtube play", "open youtube and search"]:
             lowered = lowered.replace(phrase, "")
@@ -238,15 +221,13 @@ if send_button and user_input.strip() != "":
         search_query = urllib.parse.quote(song_query)
         youtube_url = f"https://www.youtube.com/results?search_query={search_query}"
         bot_reply = f"🎬 [Click here to watch on YouTube]({youtube_url})"
-    
+
     elif any(w in clean_tokens for w in ["who", "what", "where", "which"]):
         title, content = scrape_wikipedia(user_input)
         bot_reply = f"📚 **{title}**\n\n📝 {content}"
+
     else:
         bot_reply = choice(responses.get(label, ["Umm... I don't know that yet. 😅"]))
 
     st.session_state.history.append(("👤 You", user_input))
     st.session_state.history.append(("🤖 Bot", bot_reply))
-
-    st.session_state.pop("user_message", None)
-    st.rerun()
