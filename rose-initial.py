@@ -5,12 +5,19 @@ from nltk import NaiveBayesClassifier
 from random import choice
 import requests
 from bs4 import BeautifulSoup
+import urllib.parse
 
-# 📦 Download required NLTK data
-nltk.download('punkt')
-nltk.download('stopwords')
-nltk.download('wordnet')
-nltk.download('omw-1.4')
+import nltk
+
+def download_nltk_data():
+    resources = ['punkt', 'stopwords', 'wordnet', 'omw-1.4']
+    for resource in resources:
+        try:
+            nltk.data.find(f'tokenizers/{resource}')
+        except LookupError:
+            nltk.download(resource)
+
+download_nltk_data()
 
 # ========================
 # 🌐 Wikipedia Scraper
@@ -141,6 +148,12 @@ training_data = [
     # 🐶 Pet talk
     ("i have a dog", "pets"), ("tell me about cats", "pets"),
     ("i love my pet", "pets"), ("dog facts", "pets"),
+
+    # 🎬 YouTube Play
+    ("open youtube and play despacito", "playyoutube"),
+    ("play shape of you on youtube", "playyoutube"),
+    ("youtube play kesariya", "playyoutube"),
+    ("open youtube and search lo-fi music", "playyoutube"),
 ]
 
 # ========================
@@ -169,7 +182,8 @@ responses = {
     "study": ["Knowledge is your superpower ⚡📚", "Let’s make studying fun 🔥", "Start with small goals, and crush them 💪", "Brains > Brawn… but both is best 😎"],
     "fitness": ["One more rep, bro! 🏋️", "Abs are built in the kitchen, not just the gym 🍎", "Consistency is the secret ingredient 🔑", "No pain, no gain 🚀"],
     "roast": ["I’d agree with you, but then we’d both be wrong 😏", "Your WiFi signal is stronger than your arguments 📶", "I’ve met toasters smarter than you 😂", "Bless your heart… it’s working overtime 💀"],
-    "pets": ["Dogs are pure souls 🐶❤️", "Cats: The true rulers of Earth 🐱👑", "Your pet deserves extra treats today 🍖", "Fun fact: A dog’s nose print is unique 🐾"]
+    "pets": ["Dogs are pure souls 🐶❤️", "Cats: The true rulers of Earth 🐱👑", "Your pet deserves extra treats today 🍖", "Fun fact: A dog’s nose print is unique 🐾"],
+    "playyoutube": ["Opening YouTube for you... 🎵", "Here you go, enjoy! 🎬"]
 }
 
 # ========================
@@ -211,7 +225,20 @@ if send_button and user_input.strip() != "":
     features, clean_tokens = preprocess_with_tokens(user_input)
     label = classifier.classify(features)
 
-    if any(w in clean_tokens for w in ["who", "what", "where", "which"]):
+    if label == "playyoutube":
+        # Extract query text for YouTube search
+        # Remove phrases to isolate song/video title
+        lowered = user_input.lower()
+        for phrase in ["open youtube and play", "play", "on youtube", "youtube play", "open youtube and search"]:
+            lowered = lowered.replace(phrase, "")
+        song_query = lowered.strip()
+        if not song_query:
+            song_query = "latest music"
+        search_query = urllib.parse.quote(song_query)
+        youtube_url = f"https://www.youtube.com/results?search_query={search_query}"
+        bot_reply = f"🎬 [Click here to watch on YouTube]({youtube_url})"
+    
+    elif any(w in clean_tokens for w in ["who", "what", "where", "which"]):
         title, content = scrape_wikipedia(user_input)
         bot_reply = f"📚 **{title}**\n\n📝 {content}"
     else:
