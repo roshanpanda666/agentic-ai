@@ -9,15 +9,16 @@ import urllib.parse
 
 import nltk
 
-def download_nltk_data():
+@st.cache_data(show_spinner=False)
+def download_nltk_resources():
     resources = ['punkt', 'stopwords', 'wordnet', 'omw-1.4']
     for resource in resources:
         try:
-            nltk.data.find(f'tokenizers/{resource}')
+            nltk.data.find(f'tokenizers/{resource}') if resource == 'punkt' else nltk.data.find(f'corpora/{resource}')
         except LookupError:
             nltk.download(resource)
 
-download_nltk_data()
+download_nltk_resources()
 
 # ========================
 # 🌐 Wikipedia Scraper
