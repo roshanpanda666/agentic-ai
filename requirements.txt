@@ -3,3 +3,4 @@ nltk
 wikipedia
 requests
 beautifulsoup4
+nltk
