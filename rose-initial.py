@@ -6,6 +6,8 @@ from intents import training_data
 from responses import responses
 import requests
 from bs4 import BeautifulSoup
+import pywhatkit as kit  # 🚀 For YouTube play
+import webbrowser
 
 nltk.download('punkt')
 nltk.download('stopwords')
@@ -21,9 +23,8 @@ def preprocess(sentence):
 training_set = [(preprocess(text), tag) for text, tag in training_data]
 classifier = nltk.NaiveBayesClassifier.train(training_set)
 
-# ===== Wikipedia Scraper Function (Improved) =====
+# ===== Wikipedia Scraper Function =====
 def scrape_wikipedia(query: str):
-    # 🧹 Clean unnecessary question phrases
     for phrase in ["who is", "what is", "where is", "tell me about", "define"]:
         if query.lower().startswith(phrase):
             query = query.lower().replace(phrase, "").strip()
@@ -38,11 +39,9 @@ def scrape_wikipedia(query: str):
 
         soup = BeautifulSoup(response.content, 'html.parser')
 
-        # 🏷️ Get title
         title_tag = soup.find('h1')
         title = title_tag.text if title_tag else "No Title Found"
 
-        # 📜 Get main content paragraph
         paragraph = ""
         for p in soup.find_all('p'):
             if p.text.strip() and not p.text.lower().startswith("coordinates") and len(p.text.strip()) > 40:
@@ -57,9 +56,23 @@ def scrape_wikipedia(query: str):
     except Exception as e:
         return f"⚠️ Failed to scrape Wikipedia: {e}"
 
+# ===== YouTube Play Function =====
+def play_on_youtube(query: str):
+    try:
+        cleaned_query = query.lower().replace("play", "").replace("youtube", "").strip()
+        print(f"🎶 Rose: Playing {cleaned_query} on YouTube...")
+        kit.playonyt(cleaned_query)  # auto opens browser + plays video
+        return f"🎶 Now playing: {cleaned_query} on YouTube!"
+    except Exception as e:
+        return f"⚠️ Could not play on YouTube: {e}"
+
 # ===== Get Response =====
 def get_response(user_input):
     question_words = ["what", "why", "how", "when", "who", "where"]
+
+    # 🎵 If it's about YouTube / play
+    if "youtube" in user_input.lower() or user_input.lower().startswith("play"):
+        return play_on_youtube(user_input)
 
     # If it's a question → scrape Wikipedia
     if any(user_input.lower().startswith(q) for q in question_words):
@@ -78,4 +91,3 @@ while True:
         print("Rose:", random.choice(responses["farewell"]))
         break
     print("Rose:", get_response(user_inp))
-
